@@ -1,0 +1,15 @@
+streamlit
+pandas
+numpy
+regex
+unidecode
+nltk
+wordcloud
+matplotlib
+imageio
+feedparser
+beautifulsoup4
+requests
+selenium
+webdriver-manager
+playwright
