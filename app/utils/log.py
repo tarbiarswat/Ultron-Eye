@@ -4,17 +4,11 @@ from pathlib import Path
 
 _DEF_FMT = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
 
-def _resolve_log_dir():
-    """
-    Try to import LOG_DIR from app.config. If that would cause a circular import
-    (e.g., during Streamlit module init), fall back to ../logs relative to repo root.
-    """
+def _resolve_log_dir() -> Path:
     try:
-        # Lazy import avoids circular imports at module-import time
-        from app.config import LOG_DIR  # type: ignore
+        from app.config import LOG_DIR  # lazy import to avoid circulars
         return LOG_DIR
     except Exception:
-        # Fallback: derive logs/ two levels up from this file
         return Path(__file__).resolve().parents[2] / "logs"
 
 def get_logger(name: str = "ultron_eye"):

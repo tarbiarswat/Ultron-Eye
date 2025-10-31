@@ -12,5 +12,4 @@ if __name__ == "__main__":
     write_df(demo, RAW_DIR / f"raw_console_{ts()}.csv")
     cleaned = clean_frame(demo, text_col="text")
     write_df(cleaned, PROC_DIR / f"processed_console_{ts()}.csv")
-    print("Top tokens:")
     print(token_counts(cleaned).head(20))

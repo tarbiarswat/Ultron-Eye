@@ -1,4 +1,3 @@
-# --- Windows asyncio policy fix for Playwright subprocesses ---
 import sys
 if sys.platform.startswith("win"):
     import asyncio
@@ -9,25 +8,16 @@ if sys.platform.startswith("win"):
 # ----------------------------------------------------------------
 
 # --- bootstrap sys.path so absolute imports like "from app.utils..." work ---
-import os, sys
+import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # .../ultron-eye
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 # ---------------------------------------------------------------------------
-def advance(progress, step, total, label=""):
-    step += 1
-    pct = min(int(step / total * 100), 100)
-    progress.progress(pct, text=f"{pct}% {label}")
-    return step
-
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-
 
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+
 from app.utils.log import get_logger
 from app.utils.io import ts, write_df
 from app.pipelines.clean import clean_frame, token_counts
@@ -40,8 +30,6 @@ from app.collectors.reddit import RedditCollector
 from app.collectors.pinterest import PinterestCollector
 
 from app.config import APP_NAME, SOURCES, RAW_DIR, PROC_DIR
-
-
 
 logger = get_logger()
 
@@ -72,9 +60,14 @@ else:
 
 # ---- helpers ----
 
+def advance(progress, step, total, label=""):
+    step += 1
+    pct = min(int(step / total * 100), 100)
+    progress.progress(pct, text=f"{pct}% {label}")
+    return step
+
 def build_input_df() -> pd.DataFrame:
     rows = []
-    # From uploaded file
     if uploaded is not None:
         if uploaded.name.endswith(".csv"):
             df = pd.read_csv(uploaded)
@@ -85,22 +78,22 @@ def build_input_df() -> pd.DataFrame:
         else:
             content = uploaded.read().decode("utf-8", errors="ignore")
             for line in content.splitlines():
-                if line.strip(): rows.append({"text": line.strip()})
-    # From paste
+                if line.strip():
+                    rows.append({"text": line.strip()})
     if raw_text.strip():
         for line in raw_text.splitlines():
-            if line.strip(): rows.append({"text": line.strip()})
+            if line.strip():
+                rows.append({"text": line.strip()})
     return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["text"])
 
 # Collector registry
 
-# …
 def make_collectors(selected: list[str]):
     mapping = {
         "Google RSS": RSSCollector(),
         "Yahoo News": YahooNewsCollector(use_selenium=False),
         "Reddit": RedditCollector(),
-        "Pinterest": PinterestCollector(scroll_batches=6, headless=True),  # <-- diagnose
+        "Pinterest": PinterestCollector(scroll_batches=6, headless=True),
     }
     return [mapping[s] for s in selected if s in mapping]
 
@@ -117,7 +110,6 @@ if run:
         if not ok:
             st.error(msg); st.stop()
 
-
     # Progress setup
     est_collect = max(1, len(terms) * max(1, len(sources)))
     est_clean   = 1
@@ -127,12 +119,9 @@ if run:
     progress = st.progress(0, text="Starting…")
     step = 0
 
-
-    # 1) Collect from selected sources
-
+    # 1) Collect
     all_rows = []
     collectors = make_collectors(sources)
-
     for term in terms:
         for col in collectors:
             try:
@@ -141,12 +130,11 @@ if run:
                 logger.info(f"Collected {len(df_c)} from {col.name} for '{term}'")
             except Exception as e:
                 logger.exception(f"Collector error [{col.name}] term='{term}': {e}")
-            # advance after each collector attempt
             step = advance(progress, step, TOTAL_STEPS, label=f"Collected from {col.name} ({term})")
 
     collected_df = pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame(columns=["text"])
 
-    # plus optional local data
+    # + Optional local data
     local_df = build_input_df()
     if not local_df.empty:
         local_df = local_df.assign(source="Local", fetched_at=pd.Timestamp.utcnow().isoformat(), term=terms[0])
@@ -160,23 +148,22 @@ if run:
     write_df(collected_df, raw_path)
     logger.info(f"Saved raw: {raw_path.name} | rows={len(collected_df)}")
 
-    # For Decision mode, keep term labels as-is; for Broad mode, cycle if missing
+    # Ensure term exists for all rows
     if "term" not in collected_df.columns or collected_df["term"].isna().all():
-        cyc = []
-        k = 0
+        cyc, k = [], 0
         for _ in range(len(collected_df)):
             cyc.append(terms[k])
             k = (k + 1) % len(terms)
         collected_df["term"] = cyc
 
     # 2) Clean
-    cleaned = clean_frame(collected_df.assign(text=collected_df.get("text").fillna(collected_df.get("title"))), text_col="text")
+    base_text = collected_df.get("text")
+    title_fallback = collected_df.get("title")
+    cleaned = clean_frame(collected_df.assign(text=base_text.fillna(title_fallback)), text_col="text")
     proc_path = PROC_DIR / f"processed_{ts()}.csv"
-    # … after you write processed CSV …
-    step = advance(progress, step, TOTAL_STEPS, label="Cleaned data")
-
     write_df(cleaned, proc_path)
     logger.info(f"Cleaned & saved: {proc_path.name} | rows={len(cleaned)}")
+    step = advance(progress, step, TOTAL_STEPS, label="Cleaned data")
 
     st.success("Processing complete.")
 
@@ -198,12 +185,9 @@ if run:
     # Static word cloud
     st.subheader("Word Cloud (Overall)")
     wc_img = wordcloud_from_tokens(cleaned["tokens"].tolist())
-
-        # static word cloud
     if wc_img is not None:
         st.image(wc_img, use_container_width=True)
         step = advance(progress, step, TOTAL_STEPS, label="Word cloud")
-
     else:
         st.info("Not enough tokens to create a word cloud.")
 
@@ -214,9 +198,9 @@ if run:
         out = animated_wordcloud(cleaned["tokens"].tolist(), gif_path, frames=12, fps=3)
         if out:
             st.image(str(out))
-            step = advance(progress, step, TOTAL_STEPS, label="Animated word cloud")
         else:
             st.info("Could not generate animated word cloud.")
+        step = advance(progress, step, TOTAL_STEPS, label="Animated word cloud")
 
     # Console echo
     print(f"[UltronEye] rows={len(cleaned)} | mode={'M1' if mode.startswith('Decision') else 'M2'} | sources={sources}")

@@ -12,8 +12,7 @@ LOG_DIR = BASE_DIR / "logs"
 for p in (RAW_DIR, PROC_DIR, CACHE_DIR, LOG_DIR):
     p.mkdir(parents=True, exist_ok=True)
 
-# Registered sources (checkboxes). Keys must match collectors mapping in app.py
-SOURCES = ["Reddit", "Yahoo News", "Google RSS", "Pinterest"]
+SOURCES = ["Google RSS", "Yahoo News", "Reddit", "Pinterest"]
 
 CLEANING = {
     "strip_urls": True,

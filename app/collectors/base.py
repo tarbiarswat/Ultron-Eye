@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-from typing import List
 
 SCHEMA_COLS = ["source", "fetched_at", "term", "url", "title", "text", "author", "region", "category"]
 

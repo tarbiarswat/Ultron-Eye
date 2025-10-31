@@ -3,7 +3,6 @@ import feedparser
 from app.collectors.base import Collector
 from app.collectors.common import now_iso
 
-
 class RSSCollector(Collector):
     name = "Google RSS"
 

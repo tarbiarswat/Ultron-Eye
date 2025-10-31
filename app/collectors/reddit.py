@@ -3,16 +3,13 @@ import requests
 from app.collectors.base import Collector
 from app.collectors.common import now_iso, HEADERS
 
-
-
 class RedditCollector(Collector):
     name = "Reddit"
 
     def __init__(self, subreddit: str | None = None):
-        self.subreddit = subreddit  # if None, search all
+        self.subreddit = subreddit
 
     def collect(self, term: str, limit: int = 50) -> pd.DataFrame:
-        # Use Reddit JSON search endpoint (public). For heavier use, prefer official API.
         if self.subreddit:
             url = f"https://www.reddit.com/r/{self.subreddit}/search.json?q={term}&restrict_sr=1&sort=new"
         else:

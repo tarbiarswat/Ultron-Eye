@@ -8,7 +8,6 @@ from selenium.webdriver.chrome.options import Options
 from app.collectors.base import Collector
 from app.collectors.common import now_iso, HEADERS
 
-
 class YahooNewsCollector(Collector):
     name = "Yahoo News"
 

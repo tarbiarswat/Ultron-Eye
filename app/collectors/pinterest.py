@@ -8,12 +8,10 @@ if sys.platform.startswith("win"):
 
 from typing import List, Dict
 import pandas as pd
-from datetime import datetime
-
 from app.collectors.base import Collector
 from app.collectors.common import now_iso
 
-# ---------- Playwright helpers ----------
+# ---------- Playwright path ----------
 def _p_collect(term: str, limit: int, headless: bool, scroll_batches: int, locale: str, user_agent: str) -> List[Dict]:
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
 
@@ -88,7 +86,6 @@ def _p_collect(term: str, limit: int, headless: bool, scroll_batches: int, local
         except PWTimeoutError:
             pass
 
-        # scroll to load content
         for _ in range(scroll_batches):
             page.mouse.wheel(0, 5000)
             page.wait_for_timeout(1400)
@@ -98,7 +95,6 @@ def _p_collect(term: str, limit: int, headless: bool, scroll_batches: int, local
         context.close()
         browser.close()
 
-    # dedupe by URL
     uniq, seen = [], set()
     for r in rows:
         u = r.get("url")
@@ -133,7 +129,6 @@ def _s_collect(term: str, limit: int, headless: bool) -> List[Dict]:
         driver.get(PIN_URL.format(query=q))
         time.sleep(2.0)
 
-        # attempt to close overlays
         for css in ["button[aria-label='Close']"]:
             try:
                 driver.find_element("css selector", css).click()
@@ -141,7 +136,6 @@ def _s_collect(term: str, limit: int, headless: bool) -> List[Dict]:
             except Exception:
                 pass
 
-        # scroll to load
         for _ in range(5):
             driver.execute_script("window.scrollBy(0, 5000);")
             time.sleep(1.4)
@@ -185,14 +179,11 @@ class PinterestCollector(Collector):
 
     def collect(self, term: str, limit: int = 40) -> pd.DataFrame:
         rows: List[Dict] = []
-        # 1) Try Playwright
         try:
             rows = _p_collect(term, limit, self.headless, self.scroll_batches, self.locale, self.ua)
-        except Exception as e:
-            # 2) Fallback to Selenium if Playwright fails (like your NotImplementedError)
+        except Exception:
             rows = _s_collect(term, limit, self.headless)
 
-        # set term and dedupe
         seen, final = set(), []
         for r in rows:
             r["term"] = term
